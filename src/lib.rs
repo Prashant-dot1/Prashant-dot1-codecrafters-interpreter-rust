@@ -90,7 +90,7 @@ impl<'de> Display for Token<'de> {
             TokenKind::Bang => write!(f,"BANG {origin} null"),
             TokenKind::BangEqual => write!(f,"BANG_EQUAL {origin} null"),
             TokenKind::Equal => write!(f,"EQUAL {origin} null"),
-            TokenKind::EqualEqual => write!(f,"EQUALEQUAL {origin} null"),
+            TokenKind::EqualEqual => write!(f,"EQUAL_EQUAL {origin} null"),
             TokenKind::LessEqual => write!(f,"LESS_EQUAL {origin} null"),
             TokenKind::GreaterEqual => write!(f,"GREATER_EQUAL {origin} null"),
             TokenKind::Less => write!(f,"LESS {origin} null"),
