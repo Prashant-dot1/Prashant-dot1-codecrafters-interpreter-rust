@@ -1,5 +1,29 @@
 use std::{borrow::Cow, fmt::Display};
-use miette::{Error, LabeledSpan};
+use miette::{Error, Diagnostic, SourceSpan,LabeledSpan};
+use thiserror::Error;
+
+#[derive(Diagnostic, Debug, Error)]
+#[error("Unexpected token {token} in input")]
+#[diagnostic(code(my_lib::random_error))]
+pub struct InternalTokenError {
+    // The `Source` that miette will use.
+    #[source_code]
+    pub src: String,
+
+    // This will underline/mark the specific code inside the larger
+    // snippet context.
+    #[label = "This input character"]
+    err_span: SourceSpan,
+
+    pub token : char
+}
+
+impl InternalTokenError {
+    pub fn line(&self) -> usize {
+        let till_the_error_line = &self.src[..=self.err_span.offset()];
+        return till_the_error_line.lines().count();
+    }
+}
 
 #[derive(Debug, PartialEq,Clone, Copy)]
 pub struct Token<'de> {
@@ -166,12 +190,12 @@ impl<'de> Iterator for Lexer<'de> {
                 '0'..='9' => Started::Number,
                 'a'..='z' | 'A'..='Z' | '_' => Started::Identifier,
                 c if c.is_whitespace() => continue,
-                c => return Some(Err(miette::miette!(
-                        labels = vec![
-                                LabeledSpan::at(self.byte - c.len_utf8()..self.byte, "this character is the probelem"),
-                            ],
-                        "Unexpected token '{c}' in input"
-                    ).with_source_code(self.whole.to_string())))
+                c => return Some(Err(InternalTokenError{
+                    src: self.whole.to_string(),
+                    err_span: SourceSpan::from(self.byte - c.len_utf8()..self.byte),
+                    token: c,
+                }.into()
+            ))
             };
 
             match started {

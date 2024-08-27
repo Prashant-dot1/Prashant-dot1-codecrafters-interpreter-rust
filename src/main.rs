@@ -27,7 +27,7 @@ enum Commands {
 
 fn main() -> miette::Result<()>{
     let args = Args::parse();
-
+    let mut flagToExit = false;
     match args.command {
         Commands::Tokenize { filename } => {
             // You can use print statements as follows for debugging, they'll be visible when running tests.
@@ -40,11 +40,29 @@ fn main() -> miette::Result<()>{
             let lexer = Lexer::new(&file_contents);
 
             for token in lexer {
-                let token = token?;
-                println!("{token}");
+                match token {
+                    Ok(t) => {
+                        println!("{t}");
+                    },
+                    Err(e) => {
+                        eprintln!("{:?}", e);
+                        if let Some(un_error) = e.downcast_ref::<InternalTokenError>() {
+                            flagToExit = true;
+                            eprintln!("[line {}] Error: Unexpected character: {}",un_error.line(), un_error.token);
+                            // std::process::exit(65);
+                        }
+                        continue;
+                        // return Err(e);
+                    }
+                }
+                
             }
             println!("EOF  null");
         }
+    }
+
+    if flagToExit {
+        std::process::exit(65);
     }
 
     Ok(())
