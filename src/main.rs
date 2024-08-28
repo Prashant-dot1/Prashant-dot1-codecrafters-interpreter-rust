@@ -51,6 +51,11 @@ fn main() -> miette::Result<()>{
                             eprintln!("[line {}] Error: Unexpected character: {}",un_error.line(), un_error.token);
                             // std::process::exit(65);
                         }
+                        else if let Some(unterminated_str) = e.downcast_ref::<StringTerminationError>() {
+                            flagToExit = true;
+                            eprintln!("[line {}] Error: Unterminated string.",unterminated_str.line());
+                            // std::process::exit(65);
+                        }
                         continue;
                         // return Err(e);
                     }

@@ -25,6 +25,28 @@ impl InternalTokenError {
     }
 }
 
+
+#[derive(Diagnostic, Debug, Error)]
+#[error("Unterminated string")]
+#[diagnostic(code(my_lib::random_error))]
+pub struct StringTerminationError {
+    // The `Source` that miette will use.
+    #[source_code]
+    pub src: String,
+
+    // This will underline/mark the specific code inside the larger
+    // snippet context.
+    #[label = "This string literal"]
+    err_span: SourceSpan,
+}
+
+impl StringTerminationError {
+    pub fn line(&self) -> usize {
+        let till_the_error_line = &self.src[..=self.err_span.offset()];
+        return till_the_error_line.lines().count();
+    }
+}
+
 #[derive(Debug, PartialEq,Clone, Copy)]
 pub struct Token<'de> {
     origin : &'de str,
@@ -121,7 +143,7 @@ impl<'de> Display for Token<'de> {
 
 impl Token<'_>{
     fn unescape<'de>(s : &'de str) -> Cow<'de , str> {
-        todo!()
+        Cow::Borrowed(s.trim_matches('"'))
     }
 }
 
@@ -200,7 +222,31 @@ impl<'de> Iterator for Lexer<'de> {
             };
 
             match started {
-                Started::String => todo!(),
+                Started::String => {
+                    if let Some(end_string) = self.rest.find('"') {
+                        let literal = &c_onwards[..end_string +2];
+                        self.rest = &self.rest[end_string + 1..];
+                        self.byte += end_string + 1;
+
+                        return Some(Ok(Token{
+                            origin : literal,
+                            kind : TokenKind::String
+                        }));
+                    }
+                    else {
+                        // unterminated string
+                        let err = StringTerminationError{
+                            src : self.whole.to_string(),
+                            err_span : SourceSpan::from(self.byte - c.len_utf8()..self.whole.len())
+                        };
+                    
+                        self.byte += self.rest.len();
+                        self.rest = &self.rest[self.rest.len()..];
+
+                        return Some(Err(err.into()));
+                        
+                    }
+                },
                 Started::Slash => {
                     if self.rest.starts_with('/') {
                         let lineend_pos = self.rest.find('\n').unwrap_or_else(|| self.rest.len());
