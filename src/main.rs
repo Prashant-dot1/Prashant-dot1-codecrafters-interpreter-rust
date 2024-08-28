@@ -46,12 +46,12 @@ fn main() -> miette::Result<()>{
                     },
                     Err(e) => {
                         eprintln!("{:?}", e);
-                        if let Some(un_error) = e.downcast_ref::<InternalTokenError>() {
+                        if let Some(un_error) = e.downcast_ref::<lex::InternalTokenError>() {
                             flagToExit = true;
                             eprintln!("[line {}] Error: Unexpected character: {}",un_error.line(), un_error.token);
                             // std::process::exit(65);
                         }
-                        else if let Some(unterminated_str) = e.downcast_ref::<StringTerminationError>() {
+                        else if let Some(unterminated_str) = e.downcast_ref::<lex::StringTerminationError>() {
                             flagToExit = true;
                             eprintln!("[line {}] Error: Unterminated string.",unterminated_str.line());
                             // std::process::exit(65);
