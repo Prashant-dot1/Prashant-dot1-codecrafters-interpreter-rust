@@ -160,7 +160,8 @@ impl<'de> Iterator for Lexer<'de> {
                 String,
                 Number,
                 Identifier,
-                IfEqualElse(TokenKind, TokenKind)
+                IfEqualElse(TokenKind, TokenKind),
+                Slash
             }
 
             let just = move |kind : TokenKind| {
@@ -181,7 +182,7 @@ impl<'de> Iterator for Lexer<'de> {
                 '+' =>  return just(TokenKind::Plus),
                 ';' =>  return just(TokenKind::Semicolon),
                 '*' =>  return just(TokenKind::Star),
-                '/' =>  return just(TokenKind::Slash),
+                '/' =>  Started::Slash,
                 '<' =>  Started::IfEqualElse(TokenKind::LessEqual, TokenKind::Less),
                 '>' =>  Started::IfEqualElse(TokenKind::GreaterEqual, TokenKind::Greater),
                 '!' =>  Started::IfEqualElse(TokenKind::BangEqual, TokenKind::Bang),
@@ -200,6 +201,20 @@ impl<'de> Iterator for Lexer<'de> {
 
             match started {
                 Started::String => todo!(),
+                Started::Slash => {
+                    if self.rest.starts_with('/') {
+                        let lineend_pos = self.rest.find('\n').unwrap_or_else(|| self.rest.len());
+                        self.byte += lineend_pos;
+                        self.rest = &self.rest[lineend_pos..];
+                        continue;
+                    }
+                    else {
+                        return Some(Ok(Token{
+                            origin : c_str,
+                            kind : TokenKind::Slash
+                        }));
+                    }
+                },
                 Started::Number => {
                     // find the fist non digit , if everything seems ok we store the len of the str slice
                     let first_non_digit = c_onwards
