@@ -342,7 +342,7 @@ impl<'de> Iterator for Lexer<'de> {
                         "and" => TokenKind::And, 
                         "class" => TokenKind::Class, 
                         "else" => TokenKind::Else,
-                        "false," => TokenKind::False, 
+                        "false" => TokenKind::False, 
                         "for" => TokenKind::For,
                         "fun" => TokenKind::Fun,
                         "if" => TokenKind::If,
