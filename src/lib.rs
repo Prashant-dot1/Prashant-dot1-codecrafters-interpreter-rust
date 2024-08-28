@@ -92,7 +92,8 @@ pub enum TokenKind {
     True,
     Var,
     While,
-    Eof  
+    Eof,
+    Print  
 }
 
 impl<'de> Display for Token<'de> {
@@ -120,7 +121,14 @@ impl<'de> Display for Token<'de> {
             TokenKind::Slash => write!(f,"SLASH {origin} null"),
             TokenKind::String => write!(f, "STRING {origin} {}", Token::unescape(origin)),
             TokenKind::Identifier => write!(f, "IDENTIFIER {origin} null"),
-            TokenKind::Number(n) => write!(f, "NUMBER {origin} {n}"),
+            TokenKind::Number(n) => {
+                if n == n.trunc() {
+                    write!(f, "NUMBER {origin} {n}.0")
+                }
+                else {
+                    write!(f, "NUMBER {origin} {n}")
+                }
+            },
             TokenKind::And => write!(f, "AND {origin} null"),
             TokenKind::Class => write!(f, "CLASS {origin} null"),
             TokenKind::Else => write!(f, "ELSE {origin} null"),
@@ -136,7 +144,8 @@ impl<'de> Display for Token<'de> {
             TokenKind::True => write!(f, "TRUE {origin} null"),
             TokenKind::Var => write!(f, "VAR {origin} null"),
             TokenKind::While => write!(f, "WHILE {origin} null"),
-            TokenKind::Eof => write!(f, "EOF {origin}null"),
+            TokenKind::Eof => write!(f, "EOF {origin} null"),
+            TokenKind::Print => write!(f , "PRINT {origin} null")
         }
     }
 }
@@ -345,6 +354,7 @@ impl<'de> Iterator for Lexer<'de> {
                         "true" => TokenKind::True,
                         "var" => TokenKind::Var,
                         "while" => TokenKind::While,
+                        "print" => TokenKind::Print,
                         _ => TokenKind::Identifier
                     };
 
