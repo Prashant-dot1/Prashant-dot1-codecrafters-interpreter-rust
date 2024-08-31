@@ -5,9 +5,11 @@ use std::path::PathBuf;
 use clap::command;
 use clap::Parser;
 use clap::Subcommand;
-use codecrafters_interpreter::*;
+use codecrafters_interpreter as ci;
 use miette::Context;
 use miette::IntoDiagnostic;
+
+
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -22,6 +24,12 @@ enum Commands {
     Tokenize {
         filename: PathBuf,
     },
+    Parse {
+        filename : PathBuf
+    },
+    Run {
+        filename : PathBuf
+    }
 }
 
 
@@ -37,7 +45,7 @@ fn main() -> miette::Result<()>{
                                                         .into_diagnostic()
                                                         .wrap_err_with(|| format!("reading '{}' failed" , filename.display()))?;
 
-            let lexer = Lexer::new(&file_contents);
+            let lexer = ci::Lexer::new(&file_contents);
 
             for token in lexer {
                 match token {
@@ -46,12 +54,12 @@ fn main() -> miette::Result<()>{
                     },
                     Err(e) => {
                         eprintln!("{:?}", e);
-                        if let Some(un_error) = e.downcast_ref::<lex::InternalTokenError>() {
+                        if let Some(un_error) = e.downcast_ref::<ci::lex::InternalTokenError>() {
                             flagToExit = true;
                             eprintln!("[line {}] Error: Unexpected character: {}",un_error.line(), un_error.token);
                             // std::process::exit(65);
                         }
-                        else if let Some(unterminated_str) = e.downcast_ref::<lex::StringTerminationError>() {
+                        else if let Some(unterminated_str) = e.downcast_ref::<ci::lex::StringTerminationError>() {
                             flagToExit = true;
                             eprintln!("[line {}] Error: Unterminated string.",unterminated_str.line());
                             // std::process::exit(65);
@@ -63,6 +71,22 @@ fn main() -> miette::Result<()>{
                 
             }
             println!("EOF  null");
+        },
+        Commands::Parse { filename } => {
+            let file_contents = fs::read_to_string(&filename)
+                .into_diagnostic()
+                .wrap_err_with(|| format!("reading {} failed", filename.display()))?;
+
+            let mut parser = ci::Parser::new(&file_contents);
+            println!("{}", parser.parse_expression().unwrap());
+        },
+        Commands::Run { filename } => {
+            let file_contents = fs::read_to_string(&filename)
+                .into_diagnostic()
+                .wrap_err_with(|| format!("reading {} failed", filename.display()))?;
+
+            let mut parser = ci::Parser::new(&file_contents);
+            println!("{}", parser.parse().unwrap());
         }
     }
 

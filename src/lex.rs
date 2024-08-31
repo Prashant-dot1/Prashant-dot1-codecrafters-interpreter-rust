@@ -47,14 +47,20 @@ impl StringTerminationError {
     }
 }
 
+#[derive(Diagnostic, Debug, Error)]
+#[error("End of File")]
+#[diagnostic(code(my_lib::random_error))]
+pub struct Eof;
+
 #[derive(Debug, PartialEq,Clone, Copy)]
 pub struct Token<'de> {
-    origin : &'de str,
-    kind : TokenKind
+    pub origin : &'de str,
+    pub offset : usize,
+    pub kind : TokenKind
 }
 
 #[derive(Clone, PartialEq , Copy, Debug)]
-enum TokenKind {
+pub enum TokenKind {
     LeftParen,
     RightParen,
     LeftBrace,
@@ -151,7 +157,7 @@ impl<'de> Display for Token<'de> {
 }
 
 impl Token<'_>{
-    fn unescape<'de>(s : &'de str) -> Cow<'de , str> {
+    pub fn unescape<'de>(s : &'de str) -> Cow<'de , str> {
         Cow::Borrowed(s.trim_matches('"'))
     }
 }
@@ -160,7 +166,8 @@ impl Token<'_>{
 pub struct Lexer<'de> {
     whole : &'de str,
     rest : &'de str,
-    byte : usize
+    byte : usize,
+    peek_in : Option<Result<Token<'de> , Error>>
 }
 
 impl<'de> Lexer<'de> {
@@ -168,9 +175,50 @@ impl<'de> Lexer<'de> {
         Self {
             whole : input,
             rest : input,
-            byte : 0
+            byte : 0,
+            peek_in : None
         }
     }
+}
+
+impl<'de> Lexer<'de> {
+
+    pub fn expect(&mut self, expected : TokenKind , unexpected : &str) -> Result<Token<'de> , Error> {
+        self.expect_where(|next|  next.kind == expected, unexpected)
+    }
+
+    pub fn expect_where(&mut self, 
+        mut f : impl FnMut(&Token<'de>) -> bool, 
+        unexpected : &str) -> Result<Token<'de> , Error> {
+        match self.next() {
+            Some(Ok(token)) if f(&token) => Ok(token),
+            Some(Ok(token)) => {
+                return Err(miette::miette!(
+                    labels = vec![
+                        LabeledSpan::at(token.offset..token.offset + token.origin.len(), "here is the problem")
+                    ],
+                    help =  format!("Expected {token:?}"),
+                    "{unexpected}"
+                ).with_source_code(self.whole.to_string()));
+            }
+            Some(Err(e)) => {
+                return Err(e);
+            }
+            None => {
+                return Err(Eof.into());
+            }
+        }
+    }
+
+    pub fn peek(&mut self) -> Option<&Result<Token<'de> , Error>> {
+        if self.peek_in.is_some() {
+            return self.peek_in.as_ref();
+        }
+
+        self.peek_in = self.next();
+        self.peek_in.as_ref()
+    }
+    
 }
 
 impl<'de> Iterator for Lexer<'de> {
@@ -178,9 +226,14 @@ impl<'de> Iterator for Lexer<'de> {
 
     fn next(&mut self) -> Option<Self::Item> {
         
+        if let Some(next) = self.peek_in.take() {
+            return Some(next);
+        }
+        
         loop {
             let mut chars = self.rest.chars();    
             let c = chars.next()?;
+            let c_at = self.byte;
             let c_onwards = self.rest;
             let c_str = &self.rest[..c.len_utf8()];
 
@@ -198,6 +251,7 @@ impl<'de> Iterator for Lexer<'de> {
             let just = move |kind : TokenKind| {
                 Some(Ok(Token{
                     kind,
+                    offset : c_at,
                     origin : c_str
                 }))
             };
@@ -239,6 +293,7 @@ impl<'de> Iterator for Lexer<'de> {
 
                         return Some(Ok(Token{
                             origin : literal,
+                            offset : c_at,
                             kind : TokenKind::String
                         }));
                     }
@@ -266,6 +321,7 @@ impl<'de> Iterator for Lexer<'de> {
                     else {
                         return Some(Ok(Token{
                             origin : c_str,
+                            offset : c_at,
                             kind : TokenKind::Slash
                         }));
                     }
@@ -308,6 +364,7 @@ impl<'de> Iterator for Lexer<'de> {
 
                     return Some(Ok(Token{
                         origin : literal,
+                        offset : c_at,
                         kind : TokenKind::Number(n)
                     }))
                 },
@@ -360,6 +417,7 @@ impl<'de> Iterator for Lexer<'de> {
 
                     return Some(Ok(Token{
                         origin : literal,
+                        offset : c_at,
                         kind : kind
                     }))
                 },
@@ -375,12 +433,14 @@ impl<'de> Iterator for Lexer<'de> {
                         self.byte +=1;
                         return Some(Ok(Token{
                             origin : span,
+                            offset : c_at,
                             kind : yes
                         }));
                     }
                     else{
                         return Some(Ok(Token {
                             origin : c_str,
+                            offset : c_at,
                             kind : no
                         }));
                     }
