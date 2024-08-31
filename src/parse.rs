@@ -738,14 +738,14 @@ impl<'de> Parser<'de>{
 fn prefix_binding_power(op: Operator) -> ((), u8) {
     match op {
         Operator::Print | Operator::Return => ((), 1),
-        Operator::Bang | Operator::Minus  => ((),9),
+        Operator::Bang | Operator::Minus  => ((),11),
         _ => panic!("bad op: {:?}", op),
     }
 }
 
 fn postfix_binding_power(op: Operator) -> Option<(u8, ())> {
     let res = match op {
-        Operator::Call => (11, ()),
+        Operator::Call => (13, ()),
         _ => return None,
     };
     Some(res)
@@ -754,9 +754,11 @@ fn infix_binding_power(op: Operator) -> Option<(u8, u8)> {
     let res = match op {
         // '=' => (2, 1),
         // '?' => (4, 3),
-        Operator::Plus | Operator::Minus => (5, 6),
-        Operator::Star | Operator::Slash => (7, 8),
-        Operator::Field => (14, 13),
+        Operator::Less | Operator::LessEqual | Operator::Greater | Operator::GreaterEqual |  Operator::BangEqual | Operator::EqualEqual => (5, 6),
+        Operator::And | Operator::Or => (3,4),
+        Operator::Plus | Operator::Minus => (7, 8),
+        Operator::Star | Operator::Slash => (9, 10),
+        Operator::Field => (16, 15),
         _ => return None,
     };
     Some(res)
