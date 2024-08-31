@@ -78,7 +78,15 @@ fn main() -> miette::Result<()>{
                 .wrap_err_with(|| format!("reading {} failed", filename.display()))?;
 
             let mut parser = ci::Parser::new(&file_contents);
-            println!("{}", parser.parse_expression().unwrap());
+
+            match parser.parse_expression() {
+                Ok(tt) => println!("{tt}"),
+                Err(e) => {
+                    eprintln!("{e:?}");
+                    std::process::exit(65);
+                }
+            }
+            // println!("{}", parser.parse_expression().unwrap());
         },
         Commands::Run { filename } => {
             let file_contents = fs::read_to_string(&filename)

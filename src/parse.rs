@@ -637,8 +637,15 @@ impl<'de> Parser<'de>{
                                                     .wrap_err("parse RHS")?;
                 TokenTree::Cons(op, vec![rhs])
             },
-            _ => {
-                panic!("we will see")
+            token => {
+                return Err(miette::miette!(
+                    labels = vec![
+                        LabeledSpan::at(token.offset..token.offset + token.origin.len(), "here")
+                    ],
+                    help = format!("unexpected {token:?}"),
+                    "Expected an expression"
+                ).with_source_code(self.whole.to_string())
+                )
             }
 
         };
